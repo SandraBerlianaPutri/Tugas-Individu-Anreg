@@ -1,0 +1,159 @@
+---
+title: "Tugas Individu Analisis Regresi"
+author: "Sandra Berliana Putri"
+date: "2024-03-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# PENANGANAN KONDISI TAK STANDAR DALAM REGRESI
+
+## Pola Garis
+
+```{r}
+library(readxl)
+library(ggplot2)
+
+data <- read_xlsx("C:/Users/ASUS/Documents/Semester 4/Analisis Regresi/Tugas/Individu/Minggu 7/DataAsumsi.xlsx")
+
+(model <- lm(Y~X, data=data))
+
+ggplot(data, aes(x = X, y = Y)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +  
+  labs(x = "X", y = "Y", title = "Scatter Plot X vs Y with Trend Line") +
+  theme_minimal()
+```
+
+Dugaan persamaan regresi: $$ Ŷ =46.4604 - 0.7525X_1$$ Berdasarkan scatter plot di atas, didapatkan bahwa pola garisnya adalah pola parabola. Akibat pola garisnya bukan linear maka transformasi perlu dilakukan. Oleh karena $$𝛃_1<0$$, maka transformasi dilakukan dengan cara X diperkecil dan Y diperkecil.
+
+## Transformasi Pola Parabola
+
+```{r}
+data$X_transformed <- sqrt(data$X)  
+data$Y_transformed <- sqrt(data$Y) 
+```
+
+Proses syntax di atas dilakukan untuk memperkecil X dan Y dengan mengakarkan kedua variabel tersebut.
+
+## Hasil Transformasi menjadi Pola Linear
+
+```{r}
+ggplot(data, aes(x = X_transformed, y = Y_transformed)) +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE) +
+  labs(x = "Transformed X", y = "Transformed Y", title = "Scatter Plot Transformed X vs Transformed Y with Trend Line") +
+  theme_minimal()
+```
+
+# Mencari Persamaan Regresi Setelah Transformasi
+
+```{r}
+library(dplyr)
+
+data <- data %>% mutate(X_transformed = sqrt(X))
+
+data <- data %>% mutate(Y_transformed = sqrt(Y))
+```
+
+Syntax di atas merupakan proses menambahkan dua kolom baru dengan nama X_transformed dan Y_transformed.
+
+## Persamaan Regresi
+
+```{r}
+(modelbaru <- lm(Y_transformed ~ X_transformed, data=data))
+```
+
+Dugaan persamaan regresi setelah transformasi : $$ Ŷ = 8.71254 -0.81345X_1$$
+
+# Cek Asumsi Persamaan Regresi Hasil Transformasi
+
+## Uji Formal Kondisi Gauss-Markov
+
+### 1. Nilai harapan sisaan sama dengan nol
+
+$$
+H_0 : µ = 0 
+$$ $$ H_1 : µ ≠ 0 $$
+
+```{r}
+t.test(modelbaru$residuals,mu = 0,conf.level = 0.95)
+```
+
+Dalam selang kepercayaan 95%, p-value \> 0.05 sehingga tidak cukup bukti untuk menolak H_0. Artinya,nilai harapan sisaan sama dengan nol.
+
+### 2. Ragam sisaan homogen
+
+$$
+H_0 : \text {homogen} 
+$$ $$
+H_1 : \text {tidak homogen}
+$$
+
+```{r}
+cek.homogen = lm(formula = abs(modelbaru$residuals) ~ X_transformed, 
+    data = data)
+summary(cek.homogen)
+```
+
+```{r}
+library(lmtest)
+
+bptest(modelbaru)
+```
+
+```{r}
+library(car)
+
+ncvTest(modelbaru)
+```
+
+Dalam selang kepercayaan 95%, p-value \> 0.05 sehingga tidak cukup bukti untuk menolak H_0. Artinya, ragam sisaan homogen.
+
+### 3. Sisaan saling bebas
+
+$$
+H_0 : \text {Saling bebas} 
+$$ $$
+H_1 : \text {Tidak saling bebas} 
+$$
+
+```{r}
+library(randtests)
+runs.test(modelbaru$residuals)
+```
+
+Berdasarkan Runs Test, dalam selang kepercayaan 95%, p-value \> 0.05 sehingga tidak cukup bukti untuk menolak H_0. Artinya, sisaan saling bebas.
+
+```{r}
+library(lmtest)
+dwtest(modelbaru)
+```
+
+Berdasarkan Durbin-Watson Test, dalam selang kepercayaan 95%, p-value \> 0.05 sehingga tidak cukup bukti untuk menolak H_0. Artinya, autokorelasi sama dengan nol.
+
+## Uji Formal Normalitas Sisaan
+
+$$
+H_0 : \text {Menyebar normal} 
+$$ $$
+H_1 : \text {Tidak menyebar normal} 
+$$
+
+```{r}
+ks.test(modelbaru$residuals, "pnorm", mean=mean(modelbaru$residuals), sd=sd(modelbaru$residuals))
+```
+
+```{r}
+library(car)
+shapiro.test(modelbaru$residuals)
+```
+
+Dalam selang kepercayaan 95%, p-value \> 0.05 sehingga tidak cukup bukti untuk menolak H_0. Artinya, galat menyebar normal.
+
+### Kesimpulan
+
+Berdasarkan hasil uji asumsi, model regresi yang dihasilkan setelah melakukan transformasi pola parabola menjadi pola linear adalah model terbaik karena memenuhi semua asumsi. Persamaan regresi terbaik : $$ Ŷ = 8.71254 -0.81345X_1 $$
